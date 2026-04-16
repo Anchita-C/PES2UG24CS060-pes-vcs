@@ -221,8 +221,11 @@ static int write_tree_recursive(IndexEntry *entries, int count,
     return rc;
 }
 int tree_from_index(ObjectID *id_out) {
-    // TODO: Implement recursive tree building
-    // (See Lab Appendix for logical steps)
-    (void)id_out;
-    return -1;
+    Index index;
+    if (index_load(&index) != 0) return -1;
+    if (index.count == 0) {
+        fprintf(stderr, "error: nothing to commit (index is empty)\n");
+        return -1;
+    }
+    return write_tree_recursive(index.entries, index.count, "", id_out);
 }
