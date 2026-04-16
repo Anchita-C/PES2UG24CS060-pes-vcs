@@ -70,39 +70,54 @@ int index_load(Index *index) {
     return 0;
 }
 
+
+// ---------------- FIX ONLY STARTS HERE ----------------
+
 static int compare_index_entries(const void *a, const void *b) {
     return strcmp(((IndexEntry *)a)->path, ((IndexEntry *)b)->path);
 }
 
+
 // Save the index to .pes/index atomically.
 int index_save(const Index *index) {
+    // Step 1: Sort a copy of the entries by path
     Index sorted_index = *index;
     qsort(sorted_index.entries, sorted_index.count, sizeof(IndexEntry), compare_index_entries);
 
+    // Step 2: Write to a temp file in the .pes directory
     char tmp_path[] = ".pes/index_XXXXXX";
     int fd = mkstemp(tmp_path);
     if (fd < 0) return -1;
-    
+
     FILE *f = fdopen(fd, "w");
     for (int i = 0; i < sorted_index.count; i++) {
         char hex[HASH_HEX_SIZE + 1];
         hash_to_hex(&sorted_index.entries[i].hash, hex);
-        fprintf(f, "%o %s %u %u %s\n", 
-                sorted_index.entries[i].mode, hex, 
-                sorted_index.entries[i].mtime_sec, 
-                sorted_index.entries[i].size, 
+
+        fprintf(f, "%o %s %u %u %s\n",
+                sorted_index.entries[i].mode,
+                hex,
+                sorted_index.entries[i].mtime_sec,
+                sorted_index.entries[i].size,
                 sorted_index.entries[i].path);
     }
+
+    // Step 4: Flush userspace buffer, fsync to disk, close
     fflush(f);
     fsync(fileno(f));
     fclose(f);
 
-    if (rename(tmp_path, ".pes/index") != 0) {
+    // Step 5: Atomically replace the real index file
+    if (rename(tmp_path, INDEX_FILE) != 0) {
         unlink(tmp_path);
         return -1;
     }
+
     return 0;
 }
+
+// ---------------- FIX ONLY ENDS HERE ----------------
+
 
 // Stage a file for the next commit.
 int index_add(Index *index, const char *path) {
