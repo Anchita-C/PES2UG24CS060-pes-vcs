@@ -266,7 +266,6 @@ int index_add(Index *index, const char *path) {
     }
     free(data);
 
-    // 3. Update existing entry or create new one
     IndexEntry *entry = index_find(index, path);
     if (!entry) {
         if (index->count >= MAX_INDEX_ENTRIES) return -1;
@@ -279,6 +278,5 @@ int index_add(Index *index, const char *path) {
     entry->mtime_sec = (uint64_t)st.st_mtime;
     entry->size = (size_t)st.st_size;
 
-    // 4. Persist the updated index
     return index_save(index);
 }
