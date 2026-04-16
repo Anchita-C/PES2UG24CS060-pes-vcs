@@ -192,59 +192,56 @@ int head_update(const ObjectID *new_commit) {
 //   - object_write      : saves the serialized text as OBJ_COMMIT
 //   - head_update       : moves the branch pointer to your new commit
 //
-// Returns 0 on success, -1 on error.
-int commit_create(const char *message, ObjectID *commit_id_out) {
-    Commit c;
 
-    // 1. Build tree from index
-    if (tree_from_index(&c.tree) != 0) {
+int commit_create(const char *message, ObjectID *commit_id_out) {
+    ObjectID tree_id;
+    if (tree_from_index(&tree_id) != 0) {
+        fprintf(stderr, "error: failed to build tree from index\n");
         return -1;
     }
 
-    // 2. Read HEAD for parent
-    ObjectID head_id;
-    if (head_read(&head_id) == 0) {
-        c.parent = head_id;
+    Commit c;
+    memset(&c, 0, sizeof(c));
+    c.tree = tree_id;
+
+    ObjectID parent_id;
+    if (head_read(&parent_id) == 0) {
         c.has_parent = 1;
+        c.parent = parent_id;
     } else {
-        memset(&c.parent, 0, sizeof(ObjectID));
         c.has_parent = 0;
     }
 
-    // 3. Author, timestamp, message
-    const char *author = pes_author();
-    if (!author) return -1;
-
-    snprintf(c.author, sizeof(c.author), "%s", author);
+    snprintf(c.author, sizeof(c.author), "%s", pes_author());
     c.timestamp = (uint64_t)time(NULL);
-    snprintf(c.message, sizeof(c.message), "%s", message);
+    // Strip any trailing newline from message
+    size_t mlen = strlen(message);
+    while (mlen > 0 && (message[mlen-1] == '\n' || message[mlen-1] == '\r'))
+        mlen--;
+    snprintf(c.message, sizeof(c.message), "%.*s\n", (int)mlen, message);
 
-    // 4. Serialize commit
-    void *raw = NULL;
-    size_t raw_len = 0;
-
+    void *raw;
+    size_t raw_len;
     if (commit_serialize(&c, &raw, &raw_len) != 0) {
+        fprintf(stderr, "error: failed to serialize commit\n");
         return -1;
     }
 
-    // 5. Write object to store
-    ObjectID new_id;
-    if (object_write(OBJ_COMMIT, raw, raw_len, &new_id) != 0) {
+    ObjectID commit_id;
+    if (object_write(OBJ_COMMIT, raw, raw_len, &commit_id) != 0) {
         free(raw);
+        fprintf(stderr, "error: failed to write commit object\n");
         return -1;
     }
-
     free(raw);
 
-    // 6. Update HEAD
-    if (head_update(&new_id) != 0) {
+    if (head_update(&commit_id) != 0) {
+        fprintf(stderr, "error: failed to update HEAD\n");
         return -1;
     }
 
-    // 7. Return commit hash
-    if (commit_id_out) {
-        *commit_id_out = new_id;
-    }
+    if (commit_id_out)
+        *commit_id_out = commit_id;
 
     return 0;
 }
