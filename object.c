@@ -94,52 +94,58 @@ int object_exists(const ObjectID *id) {
 //
 // Returns 0 on success, -1 on error.
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // Step 1: Determine type string
     const char *type_str;
     if (type == OBJ_BLOB)        type_str = "blob";
     else if (type == OBJ_TREE)   type_str = "tree";
     else if (type == OBJ_COMMIT) type_str = "commit";
     else return -1;
 
-    // Step 2: Build header "type size\0"
     char header[64];
     int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
 
-    // Step 3: Build full object (header + data)
     size_t full_len = (size_t)header_len + len;
     uint8_t *full = malloc(full_len);
     if (!full) return -1;
     memcpy(full, header, header_len);
     memcpy(full + header_len, data, len);
 
-    // Step 4: Compute hash
     compute_hash(full, full_len, id_out);
 
-    // Step 5: Deduplication
     if (object_exists(id_out)) {
         free(full);
         return 0;
     }
 
-    // Step 6: Get final path and shard dir
     char path[512];
     object_path(id_out, path, sizeof(path));
 
+    // Extract shard dir from path: .pes/objects/XX
     char shard_dir[512];
     snprintf(shard_dir, sizeof(shard_dir), "%s/%.2s", OBJECTS_DIR,
              path + strlen(OBJECTS_DIR) + 1);
-    mkdir(shard_dir, 0755); // ok if already exists
+    mkdir(shard_dir, 0755);
 
-    // Step 7: Write to a temp file in the shard directory
+    // Write to temp file, fsync, rename atomically
     char tmp_path[512];
     snprintf(tmp_path, sizeof(tmp_path), "%s/tmp_XXXXXX", shard_dir);
     int fd = mkstemp(tmp_path);
     if (fd < 0) { free(full); return -1; }
 
+    ssize_t written = write(fd, full, full_len);
     free(full);
-    return -1; // disk write and rename coming next
-}
-// Read an object from the store.
+    if (written != (ssize_t)full_len) { close(fd); unlink(tmp_path); return -1; }
+
+    fsync(fd);
+    close(fd);
+
+    if (rename(tmp_path, path) != 0) { unlink(tmp_path); return -1; }
+
+    // fsync the shard directory to persist the rename
+    int dir_fd = open(shard_dir, O_RDONLY);
+    if (dir_fd >= 0) { fsync(dir_fd); close(dir_fd); }
+
+    return 0;
+}// Read an object from the store.
 //
 // Steps:
 //   1. Build the file path from the hash using object_path()
