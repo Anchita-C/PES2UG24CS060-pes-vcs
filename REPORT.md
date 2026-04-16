@@ -4,11 +4,11 @@
 
 ### Screenshot 1A: Output of ./test_objects showing all tests passing.
 
-![1A: Object Storage Tests](./screenshots/1a.png)
+![1A: Object Storage Tests](./screenshots/1a.jpeg)
 
 ### Screenshot 1B: find .pes/objects -type f showing the sharded directory structure.
 
-![1B: Sharded Object Directory Structure](./screenshots/1b.png)
+![1B: Sharded Object Directory Structure](./screenshots/1b.jpeg)
 
 ### Summary
 Object storage implementation complete. The `object_write` and `object_read` functions successfully:
@@ -27,7 +27,7 @@ Object storage implementation complete. The `object_write` and `object_read` fun
 
 ### Screenshot 2B: Pick a tree object from find .pes/objects -type f and run xxd .pes/objects/XX/YYY... | head -20 to show the raw binary format.
 
-![2B: Raw Tree Object Format](./screenshots/2b.png)
+![2B: Raw Tree Object Format](./screenshots/2b.jpeg)
 
 ### Summary
 Tree object implementation complete. The `tree_from_index` function:
