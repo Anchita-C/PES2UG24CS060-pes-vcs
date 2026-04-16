@@ -15,6 +15,11 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include "index.h"
+
+// Forward declaration for the recursive helper
+static int write_tree_recursive(IndexEntry *entries, int count,
+                                 const char *prefix, ObjectID *id_out);
 
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
