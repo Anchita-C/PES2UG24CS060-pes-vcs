@@ -196,12 +196,12 @@ int head_update(const ObjectID *new_commit) {
 int commit_create(const char *message, ObjectID *commit_id_out) {
     Commit c;
 
-    // Step 1: build tree from index
+    // 1. Build tree from index
     if (tree_from_index(&c.tree) != 0) {
         return -1;
     }
 
-    // Step 2: read HEAD for parent
+    // 2. Read HEAD for parent
     ObjectID head_id;
     if (head_read(&head_id) == 0) {
         c.parent = head_id;
@@ -211,7 +211,7 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
         c.has_parent = 0;
     }
 
-    // Step 3: author, timestamp, message
+    // 3. Author, timestamp, message
     const char *author = pes_author();
     if (!author) return -1;
 
@@ -219,6 +219,32 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     c.timestamp = (uint64_t)time(NULL);
     snprintf(c.message, sizeof(c.message), "%s", message);
 
-    (void)commit_id_out;
-    return -1;
+    // 4. Serialize commit
+    void *raw = NULL;
+    size_t raw_len = 0;
+
+    if (commit_serialize(&c, &raw, &raw_len) != 0) {
+        return -1;
+    }
+
+    // 5. Write object to store
+    ObjectID new_id;
+    if (object_write(OBJ_COMMIT, raw, raw_len, &new_id) != 0) {
+        free(raw);
+        return -1;
+    }
+
+    free(raw);
+
+    // 6. Update HEAD
+    if (head_update(&new_id) != 0) {
+        return -1;
+    }
+
+    // 7. Return commit hash
+    if (commit_id_out) {
+        *commit_id_out = new_id;
+    }
+
+    return 0;
 }
