@@ -201,6 +201,18 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
         return -1;
     }
 
+    // Step 2: read HEAD (parent commit if it exists)
+    ObjectID head_id;
+    if (head_read(&head_id) == 0) {
+        // HEAD exists → this is not the first commit
+        c.parent = head_id;
+        c.has_parent = 1;
+    } else {
+        // no parent (initial commit)
+        memset(&c.parent, 0, sizeof(ObjectID));
+        c.has_parent = 0;
+    }
+
     (void)message;
     (void)commit_id_out;
     return -1;
