@@ -37,29 +37,35 @@ int index_status(const Index *index) {
     return 0;
 }
 
-// 2. REPLACE: The TODO section with this:
 
 // Load the index from .pes/index.
 int index_load(Index *index) {
     index->count = 0;
-    FILE *f = fopen(".pes/index", "r");
-    if (!f) return 0;
 
-    char hex[HASH_HEX_SIZE + 1];
-    char path[MAX_PATH_LEN];
-    uint32_t mode;
-    long mtime;
-    size_t size;
+    FILE *f = fopen(INDEX_FILE, "r");
+    if (!f) return 0;  // No index yet = empty index, not an error
 
-    while (fscanf(f, "%o %64s %ld %zu %[^\n]", &mode, hex, &mtime, &size, path) == 5) {
-        if (index->count >= MAX_INDEX_ENTRIES) break;
-        IndexEntry *e = &index->entries[index->count++];
-        e->mode = mode;
-        e->mtime_sec = (uint32_t)mtime;
-        e->size = (uint32_t)size;
-        strncpy(e->path, path, sizeof(e->path) - 1);
-        hex_to_hash(hex, &e->hash);
+    char hex[HASH_HEX_SIZE + 2];  // +2 for safety
+    while (index->count < MAX_INDEX_ENTRIES) {
+        IndexEntry *e = &index->entries[index->count];
+
+        int n = fscanf(f, "%o %64s %llu %u %511s",
+                       &e->mode,
+                       hex,
+                       (unsigned long long *)&e->mtime_sec,
+                       &e->size,
+                       e->path);
+
+        if (n == EOF || n < 5) break;
+
+        if (hex_to_hash(hex, &e->hash) != 0) {
+            fclose(f);
+            return -1;
+        }
+
+        index->count++;
     }
+
     fclose(f);
     return 0;
 }
