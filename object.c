@@ -116,17 +116,17 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return 0;
     }
 
-    char path[512];
+    char path[600];
     object_path(id_out, path, sizeof(path));
 
     // Extract shard dir from path: .pes/objects/XX
-    char shard_dir[512];
+    char shard_dir[600];
     snprintf(shard_dir, sizeof(shard_dir), "%s/%.2s", OBJECTS_DIR,
              path + strlen(OBJECTS_DIR) + 1);
     mkdir(shard_dir, 0755);
 
     // Write to temp file, fsync, rename atomically
-    char tmp_path[512];
+    char tmp_path[640];
     snprintf(tmp_path, sizeof(tmp_path), "%s/tmp_XXXXXX", shard_dir);
     int fd = mkstemp(tmp_path);
     if (fd < 0) { free(full); return -1; }
