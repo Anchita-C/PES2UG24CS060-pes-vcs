@@ -1,21 +1,12 @@
-# OS - ORANGE PROBLEM REPORT
-
-# Building PES-VCS — A Version Control System from Scratch
-
-**NAME:** ANCHITA CHHIBBA
-**SRN:** PES2UG24CS060 
-
----
-
 ## Phase 1: Object Storage Foundation
 
 ### Screenshot 1A: Output of ./test_objects showing all tests passing.
 
-![1A: Object Storage Tests](./screenshots/1a.png)
+![1A: Object Storage Tests](screenshots/1a.png)
 
 ### Screenshot 1B: find .pes/objects -type f showing the sharded directory structure.
 
-![1B: Sharded Object Directory Structure](./screenshots/1b.png)
+![1B: Sharded Object Directory Structure](screenshots/1b.png)
 
 ### Summary
 Object storage implementation complete. The `object_write` and `object_read` functions successfully:
@@ -30,18 +21,11 @@ Object storage implementation complete. The `object_write` and `object_read` fun
 
 ### Screenshot 2A: Output of ./test_tree showing all tests passing.
 
-![2A: Tree Serialization Tests](./screenshots/2a.jpeg)
+![2A: Tree Serialization Tests](screenshots/2a.jpeg)
 
 ### Screenshot 2B: Pick a tree object from find .pes/objects -type f and run xxd .pes/objects/XX/YYY... | head -20 to show the raw binary format.
 
-![2B: Raw Tree Object Format](./screenshots/2b.png)
-
-### Summary
-Tree object implementation complete. The `tree_from_index` function:
-- Builds hierarchical tree structures from index entries
-- Handles nested paths and creates intermediate directories
-- Writes all tree objects to the object store
-- Returns root tree hash for commits
+![2B: Raw Tree Object Format](screenshots/2b.png)
 
 ---
 
@@ -49,17 +33,11 @@ Tree object implementation complete. The `tree_from_index` function:
 
 ### Screenshot 3A: Run ./pes init, ./pes add file1.txt file2.txt, ./pes status — show the output.
 
-![3A: Index and Status Workflow](./screenshots/3a.jpeg)
+![3A: Index and Status Workflow](screenshots/3a.jpeg)
 
 ### Screenshot 3B: cat .pes/index showing the text-format index with your entries.
 
-![3B: Index File Format](./screenshots/3b.jpeg)
-
-### Summary
-Index implementation complete. Functions implemented:
-- `index_load`: Reads text-based index file, handles missing file gracefully
-- `index_save`: Atomically writes index entries sorted by path
-- `index_add`: Stages files by computing blob hash and updating index entry
+![3B: Index File Format](screenshots/3b.jpeg)
 
 ---
 
@@ -67,33 +45,15 @@ Index implementation complete. Functions implemented:
 
 ### Screenshot 4A: Output of ./pes log showing three commits with hashes, authors, timestamps, and messages.
 
-![4A: Commit Log](./screenshots/4a.jpeg)
+![4A: Commit Log](screenshots/4a.jpeg)
 
 ### Screenshot 4B: find .pes -type f | sort showing object store growth after three commits.
 
-![4B: Object Store Growth](./screenshots/4b.jpeg)
+![4B: Object Store Growth](screenshots/4b.jpeg)
 
 ### Screenshot 4C: cat .pes/refs/heads/main and cat .pes/HEAD showing the reference chain.
 
-![4C: Reference Chain](./screenshots/4c.jpeg)
-
-### Summary
-Commit implementation complete. The `commit_create` function:
-- Builds tree from staged changes
-- Reads parent commit from HEAD
-- Writes commit object with metadata (author, timestamp, message)
-- Updates branch reference to new commit
-
----
-
-
-
-# OS - ORANGE PROBLEM REPORT
-
-# Building PES-VCS — A Version Control System from Scratch
-
-**NAME:** ANCHITA CHHIBBA  
-**SRN:** PES2UG24CS060  
+![4C: Reference Chain](screenshots/4c.jpeg)
 
 ---
 
