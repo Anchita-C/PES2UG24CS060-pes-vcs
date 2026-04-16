@@ -6,6 +6,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include "object.h"
+
 
 
 // 1. KEEP: index_find, index_remove, index_status (The "PROVIDED" code)
@@ -118,36 +120,69 @@ int index_save(const Index *index) {
 
 // ---------------- FIX ONLY ENDS HERE ----------------
 
-
+// Forward declaration
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 // Stage a file for the next commit.
 int index_add(Index *index, const char *path) {
+    // Step 1: Read the file contents
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        fprintf(stderr, "error: cannot open '%s'\n", path);
+        return -1;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (file_size < 0) { fclose(f); return -1; }
+
+    uint8_t *contents = malloc((size_t)file_size);
+    if (!contents) { fclose(f); return -1; }
+
+    if (file_size > 0 && fread(contents, 1, (size_t)file_size, f) != (size_t)file_size) {
+        free(contents); fclose(f); return -1;
+    }
+    fclose(f);
+
+    // Step 2: Write blob to the object store
+    ObjectID blob_id;
+    if (object_write(OBJ_BLOB, contents, (size_t)file_size, &blob_id) != 0) {
+        free(contents);
+        fprintf(stderr, "error: failed to store blob for '%s'\n", path);
+        return -1;
+    }
+    free(contents);
+
+    // Step 3: Get file metadata (mode, mtime, size)
     struct stat st;
     if (lstat(path, &st) != 0) return -1;
 
-    FILE *f = fopen(path, "rb");
-    if (!f) return -1;
-    uint8_t *data = malloc(st.st_size);
-    fread(data, 1, st.st_size, f);
-    fclose(f);
+    uint32_t mode;
+    if (st.st_mode & S_IXUSR) mode = 0100755;
+    else                       mode = 0100644;
 
-    ObjectID id;
-    if (object_write(OBJ_BLOB, data, st.st_size, &id) != 0) {
-        free(data);
-        return -1;
+    // Step 4: Update or insert index entry
+    IndexEntry *existing = index_find(index, path);
+    if (existing) {
+        // Update in place
+        existing->hash    = blob_id;
+        existing->mode    = mode;
+        existing->mtime_sec = (uint64_t)st.st_mtime;
+        existing->size    = (uint32_t)st.st_size;
+    } else {
+        // Add new entry
+        if (index->count >= MAX_INDEX_ENTRIES) {
+            fprintf(stderr, "error: index is full\n");
+            return -1;
+        }
+        IndexEntry *e = &index->entries[index->count++];
+        e->hash      = blob_id;
+        e->mode      = mode;
+        e->mtime_sec = (uint64_t)st.st_mtime;
+        e->size      = (uint32_t)st.st_size;
+        snprintf(e->path, sizeof(e->path), "%s", path);
     }
-    free(data);
 
-    IndexEntry *e = index_find(index, path);
-    if (!e) {
-        if (index->count >= MAX_INDEX_ENTRIES) return -1;
-        e = &index->entries[index->count++];
-        strncpy(e->path, path, sizeof(e->path) - 1);
-    }
-
-    e->mode = get_file_mode(path);
-    e->hash = id;
-    e->mtime_sec = (uint32_t)st.st_mtime;
-    e->size = (uint32_t)st.st_size;
-
+    // Step 5: Save the updated index to disk
     return index_save(index);
 }
