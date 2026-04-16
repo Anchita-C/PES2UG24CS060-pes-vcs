@@ -196,24 +196,29 @@ int head_update(const ObjectID *new_commit) {
 int commit_create(const char *message, ObjectID *commit_id_out) {
     Commit c;
 
-    // Step 1: build tree from index (snapshot staged state)
+    // Step 1: build tree from index
     if (tree_from_index(&c.tree) != 0) {
         return -1;
     }
 
-    // Step 2: read HEAD (parent commit if it exists)
+    // Step 2: read HEAD for parent
     ObjectID head_id;
     if (head_read(&head_id) == 0) {
-        // HEAD exists → this is not the first commit
         c.parent = head_id;
         c.has_parent = 1;
     } else {
-        // no parent (initial commit)
         memset(&c.parent, 0, sizeof(ObjectID));
         c.has_parent = 0;
     }
 
-    (void)message;
+    // Step 3: author, timestamp, message
+    const char *author = pes_author();
+    if (!author) return -1;
+
+    snprintf(c.author, sizeof(c.author), "%s", author);
+    c.timestamp = (uint64_t)time(NULL);
+    snprintf(c.message, sizeof(c.message), "%s", message);
+
     (void)commit_id_out;
     return -1;
 }
