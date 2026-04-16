@@ -94,38 +94,51 @@ int object_exists(const ObjectID *id) {
 //
 // Returns 0 on success, -1 on error.
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // Step 1: Build the type string
+    // Step 1: Determine type string
     const char *type_str;
     if (type == OBJ_BLOB)        type_str = "blob";
     else if (type == OBJ_TREE)   type_str = "tree";
     else if (type == OBJ_COMMIT) type_str = "commit";
     else return -1;
 
-    // Step 2: Build the header: "blob 16\0"
+    // Step 2: Build header "type size\0"
     char header[64];
     int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
-    // +1 to include the '\0' terminator in header_len
 
-    // Step 3: Allocate and build full object: header + data
+    // Step 3: Build full object (header + data)
     size_t full_len = (size_t)header_len + len;
     uint8_t *full = malloc(full_len);
     if (!full) return -1;
     memcpy(full, header, header_len);
     memcpy(full + header_len, data, len);
 
-    // Step 4: Compute SHA-256 of the full object
+    // Step 4: Compute hash
     compute_hash(full, full_len, id_out);
 
-    // Step 5: Deduplication — if already stored, we're done
+    // Step 5: Deduplication
     if (object_exists(id_out)) {
         free(full);
         return 0;
     }
 
-    free(full);
-    return -1; // rest to be implemented
-}
+    // Step 6: Get final path and shard dir
+    char path[512];
+    object_path(id_out, path, sizeof(path));
 
+    char shard_dir[512];
+    snprintf(shard_dir, sizeof(shard_dir), "%s/%.2s", OBJECTS_DIR,
+             path + strlen(OBJECTS_DIR) + 1);
+    mkdir(shard_dir, 0755); // ok if already exists
+
+    // Step 7: Write to a temp file in the shard directory
+    char tmp_path[512];
+    snprintf(tmp_path, sizeof(tmp_path), "%s/tmp_XXXXXX", shard_dir);
+    int fd = mkstemp(tmp_path);
+    if (fd < 0) { free(full); return -1; }
+
+    free(full);
+    return -1; // disk write and rename coming next
+}
 // Read an object from the store.
 //
 // Steps:
