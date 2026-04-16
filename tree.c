@@ -20,6 +20,8 @@
 // Forward declaration for the recursive helper
 static int write_tree_recursive(IndexEntry *entries, int count,
                                  const char *prefix, ObjectID *id_out);
+// Forward declaration (object_write is defined in object.c)
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
@@ -167,15 +169,14 @@ static int write_tree_recursive(IndexEntry *entries, int count,
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = e->mode;
             te->hash = e->hash;
-            strncpy(te->name, rel, sizeof(te->name) - 1);
+            snprintf(te->name, sizeof(te->name), "%s", rel);
             te->name[sizeof(te->name) - 1] = '\0';
             i++;
         } else {
             // It's a subdirectory — extract the dir name
             char dir_name[256];
             size_t dir_len = slash - rel;
-            strncpy(dir_name, rel, dir_len);
-            dir_name[dir_len] = '\0';
+            snprintf(dir_name, sizeof(dir_name), "%.*s", (int)dir_len, rel);
 
             // Build the full prefix for the subdirectory
             char sub_prefix[512];
