@@ -190,7 +190,33 @@ static int write_tree_recursive(IndexEntry *entries, int count,
             if (write_tree_recursive(entries, count, sub_prefix, &sub_id) != 0)
                 return -1;
 
-            // Add subtree entry to current tree
+            // Check if this subtree was already added (avoid duplicates)
+            int already_added = 0;
+            for (int k = 0; k < tree.count; k++) {
+                if (strcmp(tree.entries[k].name, dir_name) == 0) {
+                    already_added = 1;
+                    break;
+                }
+            }
+
+            if (already_added) {
+                // Still need to skip the entries in this subdir
+                while (i < count) {
+                    const char *p = (prefix_len > 0) ? entries[i].path + prefix_len + 1
+                                                    : entries[i].path;
+                    char first_component[256];
+                    const char *s = strchr(p, '/');
+                    if (!s) break;
+                    size_t clen = s - p;
+                    strncpy(first_component, p, clen);
+                    first_component[clen] = '\0';
+                    if (strcmp(first_component, dir_name) != 0) break;
+                    i++;
+                }
+                continue;
+            }
+
+            // Add subtree entry
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = MODE_DIR;
             te->hash = sub_id;
